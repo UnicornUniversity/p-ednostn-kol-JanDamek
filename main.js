@@ -1,36 +1,107 @@
-//TODO add imports if needed
-//TODO doc
+import {FEMALE_NAMES, FEMALE_SURNAMES, MALE_NAMES, MALE_SURNAMES} from "./src/constants.js";
+import {generateRandomBirthdate, pickRandom} from "./src/utils.js";
+import {buildSortedOutput, countNameFrequencies} from "./src/chartHelpers.js";
+
+/** Average number of milliseconds in a year (accounting for leap years). */
+const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000;
+
+/** Available workload options in hours per week. */
+const WORKLOADS = [10, 20, 30, 40];
+
+/** Available gender options. */
+const GENDERS = ["male", "female"];
+
+/** All gender × workload combinations for guaranteed coverage in generated data. */
+const MANDATORY_COMBINATIONS = GENDERS.flatMap(
+  (gender) => WORKLOADS.map((workload) => ({ gender, workload }))
+);
+
 /**
- * The main function which calls the application. 
- * Please, add specific description here for the application purpose.
- * @param {object} dtoIn contains count of employees, age limit of employees {min, max}
- * @returns {object} containing the statistics
+ * Generates employees and computes name frequency statistics.
+ * @param {object} dtoIn - Input parameters.
+ * @param {number} dtoIn.count - Number of employees to generate.
+ * @param {object} dtoIn.age - Age constraints.
+ * @param {number} dtoIn.age.min - Minimum age (inclusive).
+ * @param {number} dtoIn.age.max - Maximum age (inclusive).
+ * @returns {object} Name frequency statistics with `names` and `chartData`.
  */
 export function main(dtoIn) {
-  //TODO code
-  //let dtoOut = exMain(dtoIn);
-  return dtoOut;
+  const employees = generateEmployeeData(dtoIn);
+  return getEmployeeChartContent(employees);
 }
 
 /**
- * Please, add specific description here 
- * @param {object} dtoIn contains count of employees, age limit of employees {min, max}
- * @returns {Array} of employees
+ * Generates a list of random employees with guaranteed gender and workload coverage.
+ * @param {object} dtoIn - Input parameters.
+ * @param {number} dtoIn.count - Number of employees to generate.
+ * @param {object} dtoIn.age - Age constraints.
+ * @param {number} dtoIn.age.min - Minimum age (inclusive).
+ * @param {number} dtoIn.age.max - Maximum age (inclusive).
+ * @returns {Array<object>} Array of employee objects.
  */
 export function generateEmployeeData(dtoIn) {
-  //TODO code
-  //let dtoOut = exGenerateEmployeeData(dtoIn);
-  return dtoOut;
+  const { count, age } = dtoIn;
+  const now = Date.now();
+  const maxBirthdate = now - age.min * MS_PER_YEAR;
+  const minBirthdate = now - age.max * MS_PER_YEAR;
+
+  const employees = [];
+
+  for (let i = 0; i < count; i++) {
+    const isMandatory = i < MANDATORY_COMBINATIONS.length;
+
+    const gender = isMandatory
+      ? MANDATORY_COMBINATIONS[i].gender
+      : pickRandom(GENDERS);
+
+    const workload = isMandatory
+      ? MANDATORY_COMBINATIONS[i].workload
+      : pickRandom(WORKLOADS);
+
+    const name = gender === "male"
+      ? pickRandom(MALE_NAMES)
+      : pickRandom(FEMALE_NAMES);
+
+    const surname = gender === "male"
+      ? pickRandom(MALE_SURNAMES)
+      : pickRandom(FEMALE_SURNAMES);
+
+    const birthdate = generateRandomBirthdate(minBirthdate, maxBirthdate);
+
+    employees.push({ gender, birthdate, name, surname, workload });
+  }
+
+  return employees;
 }
 
 /**
- * Please, add specific description here 
- * @param {Array} employees containing all the mocked employee data
- * @returns {object} frequencies of the employee names
+ * Computes name frequency statistics across five employee categories.
+ * @param {Array<object>} employees - Array of employee objects.
+ * @returns {object} Object with `names` and `chartData`, both sorted descending by frequency.
  */
 export function getEmployeeChartContent(employees) {
-  //TODO code
-  //let dtoOut = exgetEmployeeChartContent(employees);
-  return dtoOut;
-}
+  const frequencies = countNameFrequencies(employees);
 
+  const allSorted = buildSortedOutput(frequencies.all);
+  const maleSorted = buildSortedOutput(frequencies.male);
+  const femaleSorted = buildSortedOutput(frequencies.female);
+  const femalePartTimeSorted = buildSortedOutput(frequencies.femalePartTime);
+  const maleFullTimeSorted = buildSortedOutput(frequencies.maleFullTime);
+
+  return {
+    names: {
+      all: allSorted.nameObject,
+      male: maleSorted.nameObject,
+      female: femaleSorted.nameObject,
+      femalePartTime: femalePartTimeSorted.nameObject,
+      maleFullTime: maleFullTimeSorted.nameObject,
+    },
+    chartData: {
+      all: allSorted.chartArray,
+      male: maleSorted.chartArray,
+      female: femaleSorted.chartArray,
+      femalePartTime: femalePartTimeSorted.chartArray,
+      maleFullTime: maleFullTimeSorted.chartArray,
+    },
+  };
+}
